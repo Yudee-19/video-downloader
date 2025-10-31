@@ -1,0 +1,12 @@
+tmp_videos/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.so
+*.egg-info/
+dist/
+build/
