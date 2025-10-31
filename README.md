@@ -1,15 +1,17 @@
-# YouTube Downloader - Full Stack Application
+# YouTube & Instagram Downloader - Full Stack Application
 
-A full-stack YouTube video downloader application built with **React** (frontend) and **FastAPI** (backend) using **yt-dlp**.
+A full-stack video downloader application built with **React** (frontend) and **FastAPI** (backend) using **yt-dlp**. Download videos and audio from YouTube and Instagram with ease!
 
 ## 🎯 Features
 
 - ✅ Download YouTube videos in best quality
-- ✅ Download audio-only (MP3 format)
-- ✅ Trim videos with start/end time
+- ✅ Download Instagram reels and videos
+- ✅ Download audio-only (MP3 format) from both platforms
+- ✅ Trim YouTube videos with start/end time
 - ✅ Real-time download status updates
 - ✅ Modern, responsive UI
 - ✅ CORS-enabled API
+- ✅ Background processing for non-blocking downloads
 
 ## 🏗️ Architecture
 

@@ -1,23 +1,24 @@
-Perfect — this is a **very cool and practical project** 👏. Let’s design your **YouTube Downloader (Fullstack) MVP architecture** step-by-step with a clear **flow diagram (conceptually)** and **technical breakdown** for each layer.
+Perfect — this is a **very cool and practical project** 👏. Let's design your **YouTube & Instagram Downloader (Fullstack) MVP architecture** step-by-step with a clear **flow diagram (conceptually)** and **technical breakdown** for each layer.
 
 ---
 
 ## 🧱 Goal (MVP)
 
-* **Frontend:** React SPA (user inputs YouTube link + optional start/end time)
-* **Backend:** FastAPI server using `yt-dlp` to download or trim videos
+* **Frontend:** React SPA (user inputs YouTube/Instagram link + optional start/end time)
+* **Backend:** FastAPI server using `yt-dlp` to download or trim videos from multiple platforms
 * **Storage:** Temporary local storage (e.g., `/tmp` folder)
 * **Download flow:** React → FastAPI → yt-dlp → save file → serve file → React download button
+* **Platforms:** YouTube (videos, shorts) and Instagram (reels, videos)
 
 ---
 
 ## ⚙️ High-Level Architecture
 
 ```
-        ┌──────────────────────────────┐
-        │          React App           │
-        │  (URL + time inputs + UI)    │
-        └─────────────┬────────────────┘
+        ┌──────────────────────────────────────────┐
+        │          React App                       │
+        │  (YouTube/Instagram URL + time + UI)     │
+        └─────────────┬────────────────────────────┘
                       │  (POST /download)
                       ▼
         ┌──────────────────────────────┐
@@ -50,9 +51,10 @@ Perfect — this is a **very cool and practical project** 👏. Let’s design y
 
 * User enters:
 
-  * YouTube URL
-  * Optional start/end time (in seconds or HH:MM:SS)
-* Clicks “Download” → Sends POST request to backend
+  * YouTube or Instagram URL
+  * Optional start/end time (in seconds or HH:MM:SS) - YouTube only
+  * Optional audio-only toggle
+* Clicks "Download" → Sends POST request to backend
 
 ```js
 // React example (simplified)
@@ -61,9 +63,10 @@ const handleDownload = async () => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      url: youtubeUrl,
+      url: videoUrl, // YouTube or Instagram
       start_time: start,
       end_time: end,
+      audio_only: audioOnly,
     }),
   });
   const data = await res.json();
@@ -75,7 +78,7 @@ const handleDownload = async () => {
 
 ### **2. Backend: FastAPI Receives Request**
 
-* Validate input (YouTube URL, optional time)
+* Validate input (YouTube or Instagram URL, optional time)
 * Generate a unique ID or filename
 * Run **`yt-dlp`** in a subprocess or via Python API
 * Save video in a temporary directory (`/tmp/videos/<id>.mp4`)
@@ -163,12 +166,14 @@ Once MVP works, you can add:
 
 | Feature               | Description                                          |
 | --------------------- | ---------------------------------------------------- |
-| 🎵 Audio-only option  | Let users choose MP3                                 |
-| ⏱️ Trim feature       | Use `ffmpeg` with start/end times                    |
+| ✅ Audio-only option  | Let users choose MP3 (IMPLEMENTED)                   |
+| ✅ Instagram support  | Download reels and videos (IMPLEMENTED)              |
+| ⏱️ Trim feature       | Use `ffmpeg` with start/end times (IMPLEMENTED)      |
 | 🗑️ Cleanup task      | Delete files older than X hours                      |
 | 💾 Persistent storage | Use AWS S3 or DigitalOcean Spaces                    |
 | 📡 Progress updates   | WebSockets for download progress                     |
 | ⚙️ Queue              | Use Celery or RQ if many users download concurrently |
+| 🎬 More platforms     | TikTok, Twitter, Facebook support                    |
 
 ---
 
@@ -215,11 +220,25 @@ npm start
 
 ## 🚀 Flow Summary
 
-1. React sends URL → `/download`
-2. FastAPI triggers `yt-dlp`
-3. File saved temporarily → `/tmp_videos`
+1. React sends URL (YouTube/Instagram) → `/download`
+2. FastAPI triggers `yt-dlp` with platform-specific options
+3. File saved temporarily → `/tmp_videos` (MP4 or MP3)
 4. React polls `/status/:id`
 5. When ready → Show `/video/:id` download link
+
+## 🎯 Supported Platforms
+
+✅ **YouTube**
+- Regular videos
+- Short videos
+- Audio extraction (MP3)
+- Video trimming (with FFmpeg)
+
+✅ **Instagram**
+- Reels
+- Video posts
+- Audio extraction (MP3)
+- IGTV videos
 
 ---
 
