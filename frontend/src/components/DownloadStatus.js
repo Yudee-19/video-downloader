@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './DownloadStatus.css';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function DownloadStatus({ fileId, onComplete, onReset }) {
   const [status, setStatus] = useState('checking');

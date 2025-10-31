@@ -8,18 +8,23 @@ import uuid
 from typing import Optional
 import subprocess
 
-app = FastAPI(title="YouTube Downloader API")
+app = FastAPI(title="YouTube & Instagram Downloader API")
+
+# Get CORS origins from environment variable or use default
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React default port
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-TEMP_DIR = "tmp_videos"
+# Get temp directory from environment or use default
+TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 class DownloadRequest(BaseModel):
