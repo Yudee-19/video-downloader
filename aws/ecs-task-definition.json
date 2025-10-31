@@ -6,12 +6,12 @@
   ],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::874962955168:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::874962955168:role/ytdlpTaskRole",
   "containerDefinitions": [
     {
       "name": "ytdlp-backend",
-      "image": "YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ytdlp-backend:latest",
+      "image": "874962955168.dkr.ecr.us-east-1.amazonaws.com/ytdlp-backend:latest",
       "essential": true,
       "portMappings": [
         {
@@ -22,7 +22,7 @@
       "environment": [
         {
           "name": "CORS_ORIGINS",
-          "value": "https://YOUR_CLOUDFRONT_DOMAIN.cloudfront.net"
+          "value": "https://d1f512vn2us81e.cloudfront.net"
         },
         {
           "name": "TEMP_DIR",
@@ -64,7 +64,7 @@
     {
       "name": "efs-storage",
       "efsVolumeConfiguration": {
-        "fileSystemId": "fs-YOUR_EFS_ID",
+        "fileSystemId": "fs-016551f0dfaedea3",
         "transitEncryption": "ENABLED",
         "authorizationConfig": {
           "iam": "DISABLED"
