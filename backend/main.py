@@ -8,18 +8,23 @@ import uuid
 from typing import Optional
 import subprocess
 
-app = FastAPI(title="YouTube Downloader API")
+app = FastAPI(title="YouTube & Instagram Downloader API")
+
+# Get CORS origins from environment variable or use default
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React default port
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-TEMP_DIR = "tmp_videos"
+# Get temp directory from environment or use default
+TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 class DownloadRequest(BaseModel):
@@ -48,13 +53,17 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
         if audio_only:
             # Download audio only
             ydl_opts = {
-                'format': 'bestaudio/bestvideo',
+                'format': 'bestaudio/best',
                 'outtmpl': f'{filepath}.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
                 }],
+                'postprocessor_args': [
+                    '-ar', '44100',  # Set audio sample rate
+                ],
+                'prefer_ffmpeg': True,
             }
         else:
             # Download video
@@ -64,13 +73,19 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
                 'merge_output_format': 'mp4',
             }
         
-        # Download the video
+        # Download the video/audio
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
+            
+            # For audio only, the file extension changes to .mp3 after post-processing
+            if audio_only:
+                # Replace the original extension with .mp3
+                base_filename = os.path.splitext(filename)[0]
+                filename = f"{base_filename}.mp3"
         
         # If trimming is needed and ffmpeg is available
-        if start_time or end_time:
+        if (start_time or end_time) and not audio_only:
             output_file = f"{filepath}_trimmed.mp4"
             cmd = ['ffmpeg', '-i', filename]
             
@@ -106,12 +121,19 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
 
 @app.get("/")
 async def root():
-    return {"message": "YouTube Downloader API", "status": "running"}
+    return {
+        "message": "YouTube & Instagram Downloader API", 
+        "status": "running",
+        "supported_platforms": ["YouTube", "Instagram"]
+    }
 
 @app.post("/download", response_model=DownloadResponse)
 async def download_video(request: DownloadRequest, background_tasks: BackgroundTasks):
     """
-    Initiate video download from YouTube
+    Initiate video download from YouTube or Instagram
+    Supports:
+    - YouTube videos (youtube.com, youtu.be)
+    - Instagram reels and videos (instagram.com)
     """
     video_id = str(uuid.uuid4())
     

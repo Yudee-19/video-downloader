@@ -1,8 +1,8 @@
-# 🚀 Quick Start Guide - YouTube Downloader
+# 🚀 Quick Start Guide - YouTube & Instagram Downloader
 
 ## ✅ What's Been Set Up
 
-Your full-stack YouTube downloader application is now ready! Here's what has been created:
+Your full-stack YouTube and Instagram downloader application is now ready! Here's what has been created:
 
 ### Backend (FastAPI)
 - ✅ FastAPI server with all endpoints
@@ -75,8 +75,9 @@ Once both servers are running:
 
 1. **Open your browser** and go to `http://localhost:3000`
 
-2. **Enter a YouTube URL** in the input field
-   - Example: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+2. **Enter a YouTube or Instagram URL** in the input field
+   - YouTube Example: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+   - Instagram Example: `https://www.instagram.com/reel/XXXXXXXXX/`
 
 3. **(Optional) Configure download options:**
    - **Start Time**: Enter time like `00:00:30` or `30` (for 30 seconds)
@@ -109,9 +110,9 @@ POST http://localhost:8000/download
 Content-Type: application/json
 
 {
-  "url": "https://www.youtube.com/watch?v=...",
-  "start_time": "00:00:30",  // optional
-  "end_time": "00:02:00",    // optional
+  "url": "https://www.youtube.com/watch?v=... or https://www.instagram.com/reel/...",
+  "start_time": "00:00:30",  // optional (YouTube only)
+  "end_time": "00:02:00",    // optional (YouTube only)
   "audio_only": false        // optional
 }
 ```
@@ -144,10 +145,15 @@ Or use curl:
 # Test health check
 curl http://localhost:8000/
 
-# Start a download
+# Start a YouTube download
 curl -X POST http://localhost:8000/download \
   -H "Content-Type: application/json" \
   -d '{"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "audio_only": false}'
+
+# Start an Instagram download
+curl -X POST http://localhost:8000/download \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.instagram.com/reel/XXXXXXXXX/", "audio_only": false}'
 ```
 
 ## 📂 Project Structure
@@ -198,8 +204,9 @@ ytdlp-demo/
 - Check if port 3000 is available
 
 ### Downloads failing
-- Verify the YouTube URL is valid and accessible
-- Some videos may be age-restricted or region-locked
+- Verify the YouTube or Instagram URL is valid and accessible
+- Some videos may be age-restricted, region-locked, or private
+- For Instagram: Make sure the reel/video is public
 - Update yt-dlp: `pip install -U yt-dlp`
 
 ### CORS errors
@@ -208,10 +215,11 @@ ytdlp-demo/
 - Check browser console for specific errors
 
 ### Trimming not working
-- Install FFmpeg on your system
+- Install FFmpeg on your system (required for trimming and audio extraction)
 - **Windows**: Download from https://ffmpeg.org/
 - **Mac**: `brew install ffmpeg`
 - **Linux**: `sudo apt install ffmpeg`
+- **Note**: Trimming is only available for YouTube videos, not Instagram
 
 ## 🎨 Customization
 
@@ -250,10 +258,26 @@ Edit `backend/main.py` and update the `ydl_opts` dictionary
 
 Now that your app is running, you can:
 
-1. **Test it thoroughly** with different YouTube URLs
+1. **Test it thoroughly** with different YouTube and Instagram URLs
 2. **Customize the UI** - Edit the CSS files for your style
 3. **Add features** from the TODO list in README.md
 4. **Deploy it** - See README.md for deployment instructions
+
+## 🎯 Supported Platforms
+
+✅ **YouTube**
+- Regular videos
+- Short videos
+- Audio extraction (MP3)
+- Video trimming (with FFmpeg)
+
+✅ **Instagram**
+- Reels
+- Video posts
+- Audio extraction (MP3)
+- IGTV videos
+
+⚠️ **Note**: Instagram private accounts and stories are not supported.
 
 ## 📚 Additional Resources
 
@@ -270,4 +294,4 @@ Now that your app is running, you can:
 
 ---
 
-**Enjoy your YouTube Downloader! 🎉**
+**Enjoy your YouTube & Instagram Downloader! 🎉**
