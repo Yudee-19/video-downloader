@@ -25,8 +25,8 @@ function App() {
     <div className="App">
       <div className="container">
         <header className="app-header">
-          <h1>🎥 YouTube Downloader</h1>
-          <p>Download videos and audio from YouTube easily</p>
+          <h1>🎥 YouTube & Instagram Downloader</h1>
+          <p>Download videos and audio from YouTube and Instagram easily</p>
         </header>
 
         <div className="main-content">

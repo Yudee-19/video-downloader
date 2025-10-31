@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './DownloadForm.css';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function DownloadForm({ onDownloadStart }) {
   const [url, setUrl] = useState('');
@@ -17,13 +17,16 @@ function DownloadForm({ onDownloadStart }) {
     setError('');
 
     if (!url.trim()) {
-      setError('Please enter a YouTube URL');
+      setError('Please enter a YouTube or Instagram URL');
       return;
     }
 
-    // Basic YouTube URL validation
-    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-      setError('Please enter a valid YouTube URL');
+    // URL validation for YouTube and Instagram
+    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+    const isInstagram = url.includes('instagram.com');
+
+    if (!isYouTube && !isInstagram) {
+      setError('Please enter a valid YouTube or Instagram URL');
       return;
     }
 
@@ -49,11 +52,11 @@ function DownloadForm({ onDownloadStart }) {
     <div className="download-form">
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="url">YouTube URL</label>
+          <label htmlFor="url">YouTube or Instagram URL</label>
           <input
             type="text"
             id="url"
-            placeholder="https://www.youtube.com/watch?v=..."
+            placeholder="https://www.youtube.com/watch?v=... or https://www.instagram.com/reel/..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={loading}

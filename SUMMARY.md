@@ -2,10 +2,10 @@
 
 ## ✅ What You Have Now
 
-Your **YouTube Downloader Full-Stack Application** is complete and ready to use!
+Your **YouTube & Instagram Downloader Full-Stack Application** is complete and ready to use!
 
 ```
-🎥 YouTube Downloader
+🎥 YouTube & Instagram Downloader
 ├── 🔧 Backend (FastAPI + yt-dlp)
 │   ├── ✅ REST API with 5 endpoints
 │   ├── ✅ Background task processing
@@ -60,8 +60,16 @@ Then open: **http://localhost:3000** 🎉
 
 ## 🎯 Quick Test
 
+### YouTube Test:
 1. Go to `http://localhost:3000`
 2. Paste this test URL: `https://www.youtube.com/watch?v=jNQXAC9IVRw`
+3. Click **"Download"**
+4. Wait for it to complete
+5. Click **"Download File"**
+
+### Instagram Test:
+1. Go to `http://localhost:3000`
+2. Paste an Instagram reel URL (e.g., `https://www.instagram.com/reel/XXXXXXXXX/`)
 3. Click **"Download"**
 4. Wait for it to complete
 5. Click **"Download File"**
@@ -95,8 +103,9 @@ ytdlp-demo/
 
 ### Core Features ✅
 - ✅ Download YouTube videos (best quality)
-- ✅ Download audio only (MP3)
-- ✅ Trim videos (start/end time)
+- ✅ Download Instagram reels and videos
+- ✅ Download audio only (MP3) from both platforms
+- ✅ Trim YouTube videos (start/end time)
 - ✅ Real-time status polling
 - ✅ Background processing
 - ✅ Clean, modern UI
@@ -133,14 +142,14 @@ ytdlp-demo/
 ## 🎨 UI Preview
 
 ```
-┌─────────────────────────────────────┐
-│   🎥 YouTube Downloader             │
-│   Download videos and audio easily   │
-├─────────────────────────────────────┤
+┌─────────────────────────────────────────────────┐
+│   🎥 YouTube & Instagram Downloader             │
+│   Download videos and audio easily               │
+├─────────────────────────────────────────────────┤
 │                                     │
-│  YouTube URL                        │
-│  [________________________]         │
-│                                     │
+│  YouTube or Instagram URL                       │
+│  [________________________________________]      │
+│                                                  │
 │  Start Time      End Time           │
 │  [________]      [________]         │
 │                                     │
@@ -200,8 +209,9 @@ npm run build
 - [ ] Add more video formats
 - [ ] Implement download queue
 - [ ] Add progress percentage
-- [ ] Support playlists
+- [ ] Support YouTube playlists
 - [ ] Add user authentication
+- [ ] Support more platforms (TikTok, Twitter, etc.)
 
 ### Later
 - [ ] Deploy to production
@@ -248,6 +258,7 @@ File downloaded to user's computer
 - [x] Backend server running on port 8000
 - [ ] Frontend server running on port 3000
 - [ ] Tested with at least one YouTube video
+- [ ] Tested with at least one Instagram reel
 - [ ] Downloaded file successfully
 - [ ] Tried audio-only download
 - [ ] Read the documentation
