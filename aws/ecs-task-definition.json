@@ -64,7 +64,7 @@
     {
       "name": "efs-storage",
       "efsVolumeConfiguration": {
-        "fileSystemId": "fs-016551f0dfaedea3c",
+        "fileSystemId": "fs-063e266e1ca1fefd2",
         "transitEncryption": "ENABLED",
         "authorizationConfig": {
           "iam": "DISABLED"
