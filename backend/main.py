@@ -7,6 +7,7 @@ import os
 import uuid
 from typing import Optional
 import subprocess
+import random
 
 app = FastAPI(title="YouTube & Instagram Downloader API")
 
@@ -27,6 +28,9 @@ app.add_middleware(
 TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+# Cookies file path - works for both local and Docker
+COOKIES_FILE = os.getenv("COOKIES_FILE", "/app/cookies.txt" if os.path.exists("/app/cookies.txt") else "cookies.txt")
+
 class DownloadRequest(BaseModel):
     url: str
     start_time: Optional[str] = None
@@ -45,16 +49,40 @@ class StatusResponse(BaseModel):
 # Store download status
 download_status = {}
 
+# List of User-Agent strings for randomization (helps avoid bot detection)
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:118.0) Gecko/20100101 Firefox/118.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+]
+
 def download_video_task(file_id: str, url: str, start_time: Optional[str], end_time: Optional[str], audio_only: bool):
     """Background task to download video using yt-dlp"""
     try:
         filepath = f"{TEMP_DIR}/{file_id}"
         
+        # Randomize User-Agent to avoid bot detection
+        selected_user_agent = random.choice(USER_AGENTS)
+        
+        # Base options for all downloads
+        base_opts = {
+            'outtmpl': f'{filepath}.%(ext)s',
+            'cookiefile': COOKIES_FILE,         # ✅ Use cookies to bypass bot detection
+            'http_headers': {                   # ✅ Randomized headers
+                'User-Agent': selected_user_agent,
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            'retries': 5,
+            'fragment_retries': 5,
+        }
+        
         if audio_only:
             # Download audio only
             ydl_opts = {
+                **base_opts,
                 'format': 'bestaudio/best',
-                'outtmpl': f'{filepath}.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -68,8 +96,8 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
         else:
             # Download video
             ydl_opts = {
+                **base_opts,
                 'format': 'bestvideo+bestaudio/best',
-                'outtmpl': f'{filepath}.%(ext)s',
                 'merge_output_format': 'mp4',
             }
         

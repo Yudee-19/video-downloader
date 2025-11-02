@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Ensure cookies.txt has proper permissions
+RUN chmod 644 /app/cookies.txt
+
 # Create directory for video storage
 RUN mkdir -p /app/tmp_videos
 
