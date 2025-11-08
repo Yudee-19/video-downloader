@@ -61,14 +61,12 @@ USER_AGENTS = [
 def download_video_task(file_id: str, url: str, start_time: Optional[str], end_time: Optional[str], audio_only: bool):
     """Background task to download video using yt-dlp"""
     try:
-        filepath = f"{TEMP_DIR}/{file_id}"
-        
         # Randomize User-Agent to avoid bot detection
         selected_user_agent = random.choice(USER_AGENTS)
         
         # Base options for all downloads
         base_opts = {
-            'outtmpl': f'{filepath}.%(ext)s',
+            'outtmpl': f'{TEMP_DIR}/%(title)s.%(ext)s',  # Use video title as filename
             'cookiefile': COOKIES_FILE,         # ✅ Use cookies to bypass bot detection
             'http_headers': {                   # ✅ Randomized headers
                 'User-Agent': selected_user_agent,
@@ -114,7 +112,9 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
         
         # If trimming is needed and ffmpeg is available
         if (start_time or end_time) and not audio_only:
-            output_file = f"{filepath}_trimmed.mp4"
+            # Extract base filename without extension for trimmed output
+            base_filename = os.path.splitext(filename)[0]
+            output_file = f"{base_filename}_trimmed.mp4"
             cmd = ['ffmpeg', '-i', filename]
             
             if start_time:
