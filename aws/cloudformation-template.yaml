@@ -139,6 +139,20 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectName}-efs-sg
 
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Redis ElastiCache
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-redis-sg
+
   # ==================== EFS File System ====================
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
@@ -165,6 +179,31 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       SecurityGroups:
         - !Ref EFSSecurityGroup
+
+  # ==================== ElastiCache Redis ====================
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Subnet group for Redis cluster
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      CacheSubnetGroupName: !Sub ${ProjectName}-redis-subnet-group
+
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      CacheNodeType: cache.t3.micro
+      Engine: redis
+      EngineVersion: 7.0
+      NumCacheNodes: 1
+      Port: 6379
+      VpcSecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-redis
 
   # ==================== Application Load Balancer ====================
   ApplicationLoadBalancer:
@@ -398,3 +437,15 @@ Outputs:
   CloudFrontDistributionId:
     Description: CloudFront Distribution ID
     Value: !Ref CloudFrontDistribution
+
+  RedisEndpoint:
+    Description: Redis Cluster Endpoint
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub ${ProjectName}-redis-endpoint
+
+  RedisPort:
+    Description: Redis Cluster Port
+    Value: !GetAtt RedisCluster.RedisEndpoint.Port
+    Export:
+      Name: !Sub ${ProjectName}-redis-port

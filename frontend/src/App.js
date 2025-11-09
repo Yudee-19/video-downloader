@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
 import DownloadForm from './components/DownloadForm';
 import DownloadStatus from './components/DownloadStatus';
+import BatchDownloadForm from './components/BatchDownloadForm';
+import BatchDownloadStatus from './components/BatchDownloadStatus';
 
 function App() {
   const [fileId, setFileId] = useState(null);
+  const [batchId, setBatchId] = useState(null);
+  const [totalVideos, setTotalVideos] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [mode, setMode] = useState('single'); // 'single' or 'batch'
 
   const handleDownloadStart = (id) => {
     setFileId(id);
+    setIsDownloading(true);
+  };
+
+  const handleBatchDownloadStart = (id, total) => {
+    setBatchId(id);
+    setTotalVideos(total);
     setIsDownloading(true);
   };
 
@@ -17,7 +28,14 @@ function App() {
 
   const handleReset = () => {
     setFileId(null);
+    setBatchId(null);
+    setTotalVideos(0);
     setIsDownloading(false);
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'single' ? 'batch' : 'single');
+    handleReset();
   };
 
   return (
@@ -31,9 +49,44 @@ function App() {
         </header>
 
         <div className="main-content container mx-auto max-w-4xl">
-          {!fileId ? (
+          {/* Mode Toggle */}
+          {!fileId && !batchId && (
+            <div className="flex justify-center mb-8">
+              <div className="bg-dark-lighter border border-gray-800 rounded-lg p-1 inline-flex">
+                <button
+                  onClick={() => setMode('single')}
+                  className={`px-6 py-2 rounded-md font-medium transition-all ${mode === 'single'
+                      ? 'bg-primary text-dark'
+                      : 'text-gray-400 hover:text-white'
+                    }`}
+                >
+                  Single Download
+                </button>
+                <button
+                  onClick={() => setMode('batch')}
+                  className={`px-6 py-2 rounded-md font-medium transition-all ${mode === 'batch'
+                      ? 'bg-primary text-dark'
+                      : 'text-gray-400 hover:text-white'
+                    }`}
+                >
+                  Batch Download
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Single Download Mode */}
+          {mode === 'single' && !fileId && !batchId && (
             <DownloadForm onDownloadStart={handleDownloadStart} />
-          ) : (
+          )}
+
+          {/* Batch Download Mode */}
+          {mode === 'batch' && !fileId && !batchId && (
+            <BatchDownloadForm onBatchDownloadStart={handleBatchDownloadStart} />
+          )}
+
+          {/* Single Download Status */}
+          {fileId && (
             <>
               {isDownloading && (
                 <div className="mb-4 text-center text-primary">
@@ -47,10 +100,19 @@ function App() {
               />
             </>
           )}
+
+          {/* Batch Download Status */}
+          {batchId && (
+            <BatchDownloadStatus
+              batchId={batchId}
+              totalVideos={totalVideos}
+              onReset={handleReset}
+            />
+          )}
         </div>
 
         <footer className="text-center mt-16 pb-8">
-          <p className="text-gray-500 text-sm">Built with React + FastAPI + yt-dlp</p>
+          <p className="text-gray-500 text-sm">Built with React + FastAPI + yt-dlp + Redis</p>
         </footer>
       </div>
     </div>

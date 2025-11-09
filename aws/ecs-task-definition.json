@@ -4,8 +4,8 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "1024",
+  "memory": "2048",
   "executionRoleArn": "arn:aws:iam::874962955168:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::874962955168:role/ytdlpTaskRole",
   "containerDefinitions": [
@@ -31,6 +31,18 @@
         {
           "name": "ENVIRONMENT",
           "value": "production"
+        },
+        {
+          "name": "REDIS_HOST",
+          "value": "YOUR_REDIS_ENDPOINT"
+        },
+        {
+          "name": "REDIS_PORT",
+          "value": "6379"
+        },
+        {
+          "name": "MAX_PARALLEL_DOWNLOADS",
+          "value": "3"
         }
       ],
       "mountPoints": [
