@@ -1,0 +1,65 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: ytdlp-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: standard  # $25/month - 2GB RAM, 1 CPU (recommended for 3 parallel downloads)
+    region: oregon
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: ytdlp-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: ytdlp-redis
+          property: port
+      - key: MAX_PARALLEL_DOWNLOADS
+        value: "3"
+      - key: CORS_ORIGINS
+        value: "*"  # TODO: Update with your frontend URL after deployment
+      - key: TEMP_DIR
+        value: /data/tmp_videos
+      - key: ENVIRONMENT
+        value: production
+    disk:
+      name: video-storage
+      mountPath: /data
+      sizeGB: 10  # $2.50/month
+    autoDeploy: true
+
+  # Redis Service
+  - type: redis
+    name: ytdlp-redis
+    plan: starter  # $10/month - 100MB Redis (sufficient for ~100 concurrent batches)
+    region: oregon
+    ipAllowList: []  # Allow access from all Render services
+    maxmemoryPolicy: allkeys-lru  # Evict least recently used keys when full
+
+  # Frontend Static Site (Optional - can use AWS CloudFront instead)
+  # Uncomment if you want to host frontend on Render
+  # - type: web
+  #   name: ytdlp-frontend
+  #   env: static
+  #   buildCommand: cd frontend && npm install && npm run build
+  #   staticPublishPath: ./frontend/build
+  #   routes:
+  #     - type: rewrite
+  #       source: /*
+  #       destination: /index.html
+  #   envVars:
+  #     - key: REACT_APP_API_URL
+  #       value: https://ytdlp-backend.onrender.com  # Update after backend deploys
+  #   headers:
+  #     - path: /*
+  #       name: Cache-Control
+  #       value: no-cache
+  #     - path: /static/*
+  #       name: Cache-Control
+  #       value: public, max-age=31536000, immutable
