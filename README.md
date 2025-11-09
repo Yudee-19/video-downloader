@@ -220,16 +220,32 @@ Download the completed video file
 ### `DELETE /cleanup/{file_id}`
 Remove downloaded file from server
 
-### `POST /batch-download` ✨ NEW
-Start batch download of multiple videos
+### `POST /batch-download` ✨ UPDATED (Per-link timestamps)
+Start batch download of multiple videos. You can now optionally trim each video individually by providing `start_time` and/or `end_time` for every item.
 
-**Request:**
+**Preferred Request (per-item timestamps):**
+```json
+{
+  "items": [
+    { "url": "https://youtube.com/watch?v=xxx", "start_time": "00:00:15", "end_time": "00:01:10" },
+    { "url": "https://youtube.com/watch?v=yyy" },
+    { "url": "https://youtu.be/zzz", "start_time": "30", "end_time": "120" }
+  ],
+  "audio_only": false
+}
+```
+
+Time format can be `HH:MM:SS` or just seconds (`"30"`). Omit `end_time` to download from `start_time` to the end. Omit both to download the full video.
+
+**Legacy Request (backward compatible):**
 ```json
 {
   "urls": [
     "https://youtube.com/watch?v=xxx",
     "https://youtube.com/watch?v=yyy"
   ],
+  "start_time": "00:00:10",   // applied to ALL urls
+  "end_time": "00:02:00",     // applied to ALL urls
   "audio_only": false
 }
 ```
@@ -269,14 +285,15 @@ Check status of all downloads in a batch
 6. Wait for the download to complete
 7. Click "Download File" to save to your device
 
-### Batch Download ✨ NEW
+### Batch Download ✨ NEW (With Trimming)
 1. Click the **"Batch Download"** tab
 2. Enter multiple YouTube/Instagram URLs (up to 10)
-3. Add more fields with the **"+"** button
-4. (Optional) Enable "Audio Only" for all videos
-5. Click **"Download All"**
-6. Watch real-time progress for each video
-7. Download completed videos individually
+3. (Optional) For each URL, set Start and End times to trim that specific clip
+4. Add more fields with the **"+"** button
+5. (Optional) Enable "Audio Only" for all videos
+6. Click **"Download All"**
+7. Watch real-time progress for each video (clip times shown)
+8. Download completed videos individually
 
 ## 🎨 Features Explained
 
@@ -291,14 +308,16 @@ Check status of all downloads in a batch
 - Works for both single and batch downloads
 
 ### Trimming (Requires ffmpeg)
-- Specify start and end times
+- Specify start and end times per single download OR per batch item
 - Format: `HH:MM:SS` or seconds
 - Uses lossless copy when possible
+- Batch downloads now produce individually trimmed clips
 
 ### Batch Downloads ✨ NEW
 - Download up to 10 videos at once
 - 3 videos download in parallel (configurable)
 - Individual progress tracking
+- Per-item trimming support
 - Redis-backed state management
 - Survives server restarts
 

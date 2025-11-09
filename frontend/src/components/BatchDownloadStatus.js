@@ -201,6 +201,11 @@ function BatchDownloadStatus({ batchId, totalVideos, onReset }) {
                           {download.filename}
                         </div>
                       )}
+                      {(download.start_time || download.end_time) && (
+                        <div className="text-gray-400 text-xs mt-1">
+                          Clip: {download.start_time || '0'} → {download.end_time || 'end'}
+                        </div>
+                      )}
                       {download.error && (
                         <div className="text-red-400 text-sm mt-1">
                           {download.error}

@@ -77,8 +77,16 @@ class DownloadRequest(BaseModel):
     end_time: Optional[str] = None
     audio_only: Optional[bool] = False
 
+class BatchItem(BaseModel):
+    url: str
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+
 class BatchDownloadRequest(BaseModel):
-    urls: List[str]
+    # New preferred schema: per-item timestamps
+    items: Optional[List[BatchItem]] = None
+    # Backward compatibility: original schema
+    urls: Optional[List[str]] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     audio_only: Optional[bool] = False
@@ -359,12 +367,24 @@ async def batch_download(request: BatchDownloadRequest):
     """
     batch_id = str(uuid.uuid4())
     download_ids = []
-    
+
+    # Normalize input into a list of (url, start, end)
+    tasks: List[tuple] = []
+    if request.items and len(request.items) > 0:
+        for it in request.items:
+            tasks.append((it.url, it.start_time, it.end_time))
+    elif request.urls and len(request.urls) > 0:
+        # Backward compatibility: apply the same timestamps to all URLs
+        for url in request.urls:
+            tasks.append((url, request.start_time, request.end_time))
+    else:
+        raise HTTPException(status_code=400, detail="No items or urls provided for batch download")
+
     # Create individual download tasks
-    for url in request.urls:
+    for url, start_t, end_t in tasks:
         video_id = str(uuid.uuid4())
         download_ids.append(video_id)
-        
+
         # Initialize status
         set_download_status(video_id, {
             "ready": False,
@@ -374,16 +394,18 @@ async def batch_download(request: BatchDownloadRequest):
             "progress": "0%",
             "status": "queued",
             "url": url,
-            "batch_id": batch_id
+            "batch_id": batch_id,
+            "start_time": start_t,
+            "end_time": end_t,
         })
-        
+
         # Submit to thread pool for parallel execution
         executor.submit(
             download_video_task,
             video_id,
             url,
-            request.start_time,
-            request.end_time,
+            start_t,
+            end_t,
             request.audio_only
         )
     
@@ -441,6 +463,8 @@ async def check_batch_status(batch_id: str):
             downloads.append({
                 "file_id": download_id,
                 "url": status.get("url", ""),
+                "start_time": status.get("start_time"),
+                "end_time": status.get("end_time"),
                 "status": status.get("status", "unknown"),
                 "progress": status.get("progress", "0%"),
                 "filename": status.get("filename"),

@@ -21,7 +21,7 @@ services:
           name: ytdlp-redis
           property: port
       - key: MAX_PARALLEL_DOWNLOADS
-        value: "3"
+        value: "7"
       - key: CORS_ORIGINS
         value: "*"  # TODO: Update with your frontend URL after deployment
       - key: TEMP_DIR
