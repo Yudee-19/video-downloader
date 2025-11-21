@@ -4,6 +4,8 @@ import DownloadStatus from './components/DownloadStatus';
 import BatchDownloadForm from './components/BatchDownloadForm';
 import BatchDownloadStatus from './components/BatchDownloadStatus';
 
+const API_URL = 'http://localhost:8000';
+
 function App() {
   const [fileId, setFileId] = useState(null);
   const [batchId, setBatchId] = useState(null);
@@ -11,9 +13,33 @@ function App() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [mode, setMode] = useState('single'); // 'single' or 'batch'
 
-  const handleDownloadStart = (id) => {
-    setFileId(id);
-    setIsDownloading(true);
+  const handleDownloadStart = async (downloadRequest) => {
+    // If you want to keep the existing queued flow, call /download here.
+    // To use direct streaming, call the new /stream-download endpoint and
+    // trigger a browser download.
+    try {
+      setIsDownloading(true);
+
+      const params = new URLSearchParams();
+      params.set('url', downloadRequest.url);
+      // format_id is left as default; you can expose it in UI later
+
+      const downloadUrl = `${API_URL}/stream-download?${params.toString()}`;
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      console.log('Starting streaming download from', downloadUrl);
+      a.click();
+      document.body.removeChild(a);
+
+      // No fileId for streaming; we immediately mark complete
+      setIsDownloading(false);
+    } catch (e) {
+      console.error('Streaming download failed', e);
+      setIsDownloading(false);
+    }
   };
 
   const handleBatchDownloadStart = (id, total) => {
@@ -56,8 +82,8 @@ function App() {
                 <button
                   onClick={() => setMode('single')}
                   className={`px-6 py-2 rounded-md font-medium transition-all ${mode === 'single'
-                      ? 'bg-primary text-dark'
-                      : 'text-gray-400 hover:text-white'
+                    ? 'bg-primary text-dark'
+                    : 'text-gray-400 hover:text-white'
                     }`}
                 >
                   Single Download
@@ -65,8 +91,8 @@ function App() {
                 <button
                   onClick={() => setMode('batch')}
                   className={`px-6 py-2 rounded-md font-medium transition-all ${mode === 'batch'
-                      ? 'bg-primary text-dark'
-                      : 'text-gray-400 hover:text-white'
+                    ? 'bg-primary text-dark'
+                    : 'text-gray-400 hover:text-white'
                     }`}
                 >
                   Batch Download

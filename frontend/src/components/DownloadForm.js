@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = 'http://localhost:8000';
 
 function DownloadForm({ onDownloadStart }) {
   const [url, setUrl] = useState('');
@@ -80,22 +80,13 @@ function DownloadForm({ onDownloadStart }) {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await axios.post(`${API_URL}/download`, {
-        url: url.trim(),
-        start_time: startTime || null,
-        end_time: endTime || null,
-        audio_only: audioOnly,
-      });
-
-      onDownloadStart(response.data.file_id);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to start download. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    // For streaming downloads we just hand URL + options to parent
+    onDownloadStart({
+      url: url.trim(),
+      start_time: startTime || null,
+      end_time: endTime || null,
+      audio_only: audioOnly,
+    });
   };
 
   return (
