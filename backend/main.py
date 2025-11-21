@@ -327,7 +327,7 @@ async def stream_download(url: str):
     
     # --- STEP 1: Extract Info (Get direct URLs) ---
     # We use dump-json to get metadata without downloading
-    info_cmd = f'yt-dlp -J "{url}"'
+    info_cmd = f'yt-dlp -cookies cookies.txt -J "{url}"'
     
     try:
         # Run yt-dlp to get JSON data
