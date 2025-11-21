@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import DownloadForm from './components/DownloadForm';
 import DownloadStatus from './components/DownloadStatus';
 import BatchDownloadForm from './components/BatchDownloadForm';
@@ -14,7 +15,28 @@ function App() {
   const [mode, setMode] = useState('single'); // 'single' or 'batch'
 
   const handleDownloadStart = async (downloadRequest) => {
-    // If you want to keep the existing queued flow, call /download here.
+    // If type is 'download', use the /download endpoint (queued download)
+    if (downloadRequest.type === 'download') {
+      try {
+        setIsDownloading(true);
+        const response = await axios.post(`${API_URL}/download`, {
+          url: downloadRequest.url,
+          start_time: downloadRequest.start_time,
+          end_time: downloadRequest.end_time,
+          audio_only: downloadRequest.audio_only
+        });
+        setFileId(response.data.file_id);
+        // Note: We don't set isDownloading(false) here because we want to show the status component
+        // which will handle the polling and completion state.
+      } catch (error) {
+        console.error('Download start failed', error);
+        setIsDownloading(false);
+        alert('Failed to start download: ' + (error.response?.data?.detail || error.message));
+      }
+      return;
+    }
+
+    // Default to streaming behavior (type === 'stream' or undefined)
     // To use direct streaming, call the new /stream-download endpoint and
     // trigger a browser download.
     try {
