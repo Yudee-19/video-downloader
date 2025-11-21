@@ -1,5 +1,5 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import yt_dlp
@@ -14,6 +14,7 @@ from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import shlex
 
 app = FastAPI(title="YouTube & Instagram Downloader API")
 
@@ -315,6 +316,101 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
             "progress": "0%",
             "status": "failed"
         })
+
+
+@app.get("/stream-download")
+async def stream_download(url: str):
+    """
+    1. Fetches direct URLs for video/audio using yt-dlp.
+    2. Uses ffmpeg to merge them on-the-fly and stream to client.
+    """
+    
+    # --- STEP 1: Extract Info (Get direct URLs) ---
+    # We use dump-json to get metadata without downloading
+    info_cmd = f'yt-dlp -J "{url}"'
+    
+    try:
+        # Run yt-dlp to get JSON data
+        info_process = subprocess.run(
+            shlex.split(info_cmd),
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        video_info = json.loads(info_process.stdout)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to extract info: {e.stderr}")
+
+    title = video_info.get('title', 'video').replace('"', '').replace("'", "")
+    
+    # Logic to find the best video and audio formats
+    # Note: We look for 'requested_formats' if yt-dlp has already decided, 
+    # otherwise we pick manually.
+    formats = video_info.get('formats', [])
+    
+    # Simple selection logic: 
+    # Get best video (preferably mp4/h264 for compatibility) and best audio
+    # In a real app, you might want more robust filtering logic here.
+    video_url = None
+    audio_url = None
+
+    # This relies on yt-dlp's default "best" sorting
+    # We iterate backwards to find the best quality
+    for f in reversed(formats):
+        if not video_url and f.get('vcodec') != 'none' and f.get('acodec') == 'none':
+            # Prioritize mp4/avc1 for direct stream compatibility if possible, 
+            # but for 1080p+ it's often vp9/webm. FFmpeg will handle the container.
+            video_url = f['url']
+        if not audio_url and f.get('acodec') != 'none' and f.get('vcodec') == 'none':
+            audio_url = f['url']
+        
+        print(audio_url, video_url)
+        
+        if video_url and audio_url:
+            break
+
+    if not video_url or not audio_url:
+        raise HTTPException(status_code=500, detail="Could not find separate video/audio streams")
+
+    # --- STEP 2: The FFmpeg Pipe ---
+    # We feed the URLs directly to ffmpeg
+    ffmpeg_cmd = (
+        f'ffmpeg -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 '
+        f'-i "{video_url}" -i "{audio_url}" '  # Inputs
+        f'-map 0:v -map 1:a '                   # Map video from input 0, audio from input 1
+        f'-c:v copy '                           # Copy video (Don't re-encode! Fast!)
+        f'-c:a aac '                            # Transcode audio to AAC (Best for MP4)
+        f'-f mp4 '                              # Output format MP4
+        f'-movflags frag_keyframe+empty_moov '  # CRITICAL: Allow streaming MP4
+        f'-'                                    # Output to stdout
+    )
+
+    # Start FFmpeg
+    process = subprocess.Popen(
+        shlex.split(ffmpeg_cmd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL, # Silence logs (set to PIPE for debugging)
+        bufsize=1024 * 1024
+    )
+
+    def generate():
+        try:
+            while True:
+                data = process.stdout.read(1024 * 1024)
+                if not data:
+                    break
+                yield data
+        finally:
+            process.kill()
+
+    return StreamingResponse(
+        generate(),
+        media_type="video/mp4",
+        headers={
+            "Content-Disposition": f'attachment; filename="{title}.mp4"',
+        },
+    )
+
 
 @app.get("/")
 async def root():
