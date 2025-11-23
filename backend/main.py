@@ -326,13 +326,13 @@ async def stream_download(url: str):
     """
     
     # --- STEP 1: Extract Info (Get direct URLs) ---
-    # We use dump-json to get metadata without downloading
-    info_cmd = f'yt-dlp -J "{url}"'
+    # Use list arguments to avoid shell parsing issues with Windows paths
+    cmd_args = ['yt-dlp', '--cookies', COOKIES_FILE, '-J', url]
     
     try:
         # Run yt-dlp to get JSON data
         info_process = subprocess.run(
-            shlex.split(info_cmd),
+            cmd_args,
             capture_output=True,
             text=True,
             check=True
@@ -343,53 +343,58 @@ async def stream_download(url: str):
 
     title = video_info.get('title', 'video').replace('"', '').replace("'", "")
     
-    # Logic to find the best video and audio formats
-    # Note: We look for 'requested_formats' if yt-dlp has already decided, 
-    # otherwise we pick manually.
     formats = video_info.get('formats', [])
     
-    # Simple selection logic: 
-    # Get best video (preferably mp4/h264 for compatibility) and best audio
-    # In a real app, you might want more robust filtering logic here.
     video_url = None
     audio_url = None
 
-    # This relies on yt-dlp's default "best" sorting
-    # We iterate backwards to find the best quality
+    # 1. Try to find best separate video and audio streams (usually 1080p+)
     for f in reversed(formats):
         if not video_url and f.get('vcodec') != 'none' and f.get('acodec') == 'none':
-            # Prioritize mp4/avc1 for direct stream compatibility if possible, 
-            # but for 1080p+ it's often vp9/webm. FFmpeg will handle the container.
             video_url = f['url']
         if not audio_url and f.get('acodec') != 'none' and f.get('vcodec') == 'none':
             audio_url = f['url']
         
-        print(audio_url, video_url)
-        
         if video_url and audio_url:
             break
 
+    # 2. Fallback: If separate streams not found, look for best combined stream
     if not video_url or not audio_url:
-        raise HTTPException(status_code=500, detail="Could not find separate video/audio streams")
+        video_url = None
+        audio_url = None
+        for f in reversed(formats):
+            if f.get('vcodec') != 'none' and f.get('acodec') != 'none':
+                video_url = f['url']
+                audio_url = f['url'] # Same URL for both
+                break
+
+    if not video_url:
+        raise HTTPException(status_code=500, detail="Could not find valid video stream")
 
     # --- STEP 2: The FFmpeg Pipe ---
-    # We feed the URLs directly to ffmpeg
-    ffmpeg_cmd = (
-        f'ffmpeg -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 '
-        f'-i "{video_url}" -i "{audio_url}" '  # Inputs
-        f'-map 0:v -map 1:a '                   # Map video from input 0, audio from input 1
-        f'-c:v copy '                           # Copy video (Don't re-encode! Fast!)
-        f'-c:a aac '                            # Transcode audio to AAC (Best for MP4)
-        f'-f mp4 '                              # Output format MP4
-        f'-movflags frag_keyframe+empty_moov '  # CRITICAL: Allow streaming MP4
-        f'-'                                    # Output to stdout
-    )
+    # Construct command as a list for safety
+    ffmpeg_cmd = ['ffmpeg', '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5']
+    
+    if video_url == audio_url:
+        # Single input (combined stream)
+        ffmpeg_cmd.extend(['-i', video_url])
+        # Copy video, transcode audio to aac (ensure mp4 compatibility)
+        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac'])
+    else:
+        # Dual input (separate streams)
+        ffmpeg_cmd.extend(['-i', video_url, '-i', audio_url])
+        # Map video from input 0, audio from input 1
+        ffmpeg_cmd.extend(['-map', '0:v', '-map', '1:a'])
+        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac'])
+
+    # Common output flags
+    ffmpeg_cmd.extend(['-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', '-'])
 
     # Start FFmpeg
     process = subprocess.Popen(
-        shlex.split(ffmpeg_cmd),
+        ffmpeg_cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL, # Silence logs (set to PIPE for debugging)
+        stderr=subprocess.DEVNULL,
         bufsize=1024 * 1024
     )
 
