@@ -15,6 +15,20 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import shlex
+import logging
+import sys
+import yt_dlp
+print(f"🚀 Loaded yt-dlp version: {yt_dlp.version.__version__}")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        # ADD encoding='utf-8' HERE:
+        logging.FileHandler("stream_log.log", encoding='utf-8'), 
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube & Instagram Downloader API")
 
@@ -116,6 +130,25 @@ class BatchStatusResponse(BaseModel):
     in_progress: int
     downloads: List[dict]
 
+
+class MyYtLogger:
+    def __init__(self, app_logger):
+        self.logger = app_logger
+
+    def debug(self, msg):
+        # Redirect yt-dlp debug messages to logger.info so they show up in your log file
+        # We filter out the specific "read 1024 bytes" noise if desired, or keep it all.
+        if not msg.startswith('[debug] '): 
+            # Optionally add a prefix to make it clear it's from yt-dlp
+            self.logger.info(f"[yt-dlp] {msg}")
+        else:
+            self.logger.info(f"{msg}")
+
+    def warning(self, msg):
+        self.logger.warning(f"[yt-dlp] {msg}")
+
+    def error(self, msg):
+        self.logger.error(f"[yt-dlp] {msg}")
 # Store download status (fallback for when Redis is not available)
 download_status = {}
 
@@ -321,92 +354,133 @@ def download_video_task(file_id: str, url: str, start_time: Optional[str], end_t
 @app.get("/stream-download")
 async def stream_download(url: str):
     """
-    1. Fetches direct URLs for video/audio using yt-dlp.
-    2. Uses ffmpeg to merge them on-the-fly and stream to client.
+    1. Fetches direct URLs using yt-dlp Python Library (Native).
+    2. Uses ffmpeg to merge them on-the-fly and stream.
     """
     
-    # --- STEP 1: Extract Info (Get direct URLs) ---
-    # Use list arguments to avoid shell parsing issues with Windows paths
-    cmd_args = ['yt-dlp', '--cookies', COOKIES_FILE, '-J', url]
-    
+    # --- STEP 0: Log the incoming request ---
+    logger.info(f"--- NEW REQUEST ---")
+    logger.info(f"Received URL for processing: {url}")
+
+    # --- STEP 1: Extract Info (Native Python API) ---
+    yt_logger = MyYtLogger(logger)
+    # Define options mapping to your previous CLI arguments
+    ydl_opts = {
+        'cookiefile': COOKIES_FILE, 
+        'format': 'bestvideo+bestaudio',  # Selects the DASH streams
+        'forceurl': True,                 # Equivalent to --get-url
+        'simulate': True,        # --cookies
+        'verbose': True,                    # -v
+        'logger': yt_logger,
+        'dump_single_json': True,
+        'js_runtimes': {'deno': {'path': ''}}                   # Pipe internal logs to your file logger
+        
+        
+        # 'quiet': True, # Uncomment if verbose logs are too noisy
+    }
+
     try:
-        # Run yt-dlp to get JSON data
-        info_process = subprocess.run(
-            cmd_args,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        video_info = json.loads(info_process.stdout)
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to extract info: {e.stderr}")
+        logger.info("Initializing yt-dlp Python Engine...")
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # extract_info(url, download=False) is equivalent to -J (get metadata only)
+            video_info = ydl.extract_info(url, download=False)
+            
+    except yt_dlp.utils.DownloadError as e:
+        logger.error(f"yt-dlp extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract info: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
     title = video_info.get('title', 'video').replace('"', '').replace("'", "")
+    logger.info(f"Video Title found: {title}")
     
+    # --- Logging the Raw Data (as requested) ---
+    try:
+        # video_info is ALREADY a dictionary, no need for json.loads()
+        debug_dump = json.dumps(video_info, indent=2, ensure_ascii=False, default=str)
+        logger.info(f"****** RAW JSON DUMP START ******\n{debug_dump}\n****** RAW JSON DUMP END ******")
+    except Exception as e:
+        logger.error(f"Could not log JSON dump due to error: {e}")
+
     formats = video_info.get('formats', [])
-    
+    logger.info(f"Total formats available: {len(formats)}")
+
+    # --- Logic for picking formats remains EXACTLY the same ---
     video_url = None
     audio_url = None
 
-    # 1. Try to find best separate video and audio streams (usually 1080p+)
+    # 1. Try to find best separate video and audio streams
     for f in reversed(formats):
         if not video_url and f.get('vcodec') != 'none' and f.get('acodec') == 'none':
             video_url = f['url']
+            logger.info(f"Selected Video Stream -> ID: {f.get('format_id')}, Res: {f.get('height')}p, URL (truncated): {video_url[:50]}...")
+        
         if not audio_url and f.get('acodec') != 'none' and f.get('vcodec') == 'none':
             audio_url = f['url']
+            logger.info(f"Selected Audio Stream -> ID: {f.get('format_id')}, Codec: {f.get('acodec')}, URL (truncated): {audio_url[:50]}...")
         
         if video_url and audio_url:
             break
 
-    # 2. Fallback: If separate streams not found, look for best combined stream
+    # 2. Fallback: Combined stream
     if not video_url or not audio_url:
+        logger.warning("Separate streams not found. Attempting fallback to combined stream.")
         video_url = None
         audio_url = None
         for f in reversed(formats):
             if f.get('vcodec') != 'none' and f.get('acodec') != 'none':
                 video_url = f['url']
-                audio_url = f['url'] # Same URL for both
+                audio_url = f['url']
+                logger.info(f"Selected Combined Stream -> ID: {f.get('format_id')}, URL: {video_url[:50]}...")
                 break
 
     if not video_url:
+        logger.error("Critical: No valid video stream found in formats.")
         raise HTTPException(status_code=500, detail="Could not find valid video stream")
 
-    # --- STEP 2: The FFmpeg Pipe ---
-    # Construct command as a list for safety
+    # --- STEP 2: The FFmpeg Pipe (Must remain subprocess) ---
+    # Note: We keep FFmpeg as subprocess because we need to stream its stdout in chunks.
+    # Converting this to a library (like ffmpeg-python) usually doesn't support the 
+    # specific live-streaming buffer requirements as easily as raw subprocess.
+    
     ffmpeg_cmd = ['ffmpeg', '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5']
     
     if video_url == audio_url:
-        # Single input (combined stream)
         ffmpeg_cmd.extend(['-i', video_url])
-        # Copy video, transcode audio to aac (ensure mp4 compatibility)
         ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac'])
     else:
-        # Dual input (separate streams)
         ffmpeg_cmd.extend(['-i', video_url, '-i', audio_url])
-        # Map video from input 0, audio from input 1
         ffmpeg_cmd.extend(['-map', '0:v', '-map', '1:a'])
         ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac'])
 
-    # Common output flags
     ffmpeg_cmd.extend(['-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', '-'])
 
-    # Start FFmpeg
+    logger.info(f"FFmpeg Command Executing: {' '.join(ffmpeg_cmd)}")
+
     process = subprocess.Popen(
         ffmpeg_cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         bufsize=1024 * 1024
     )
+    
+    logger.info("FFmpeg process started. Streaming response...")
 
     def generate():
         try:
             while True:
                 data = process.stdout.read(1024 * 1024)
                 if not data:
+                    logger.info("Stream finished successfully.")
                     break
                 yield data
+        except Exception as e:
+            logger.error(f"Streaming interrupted/error: {e}")
         finally:
             process.kill()
+            logger.info("FFmpeg process killed/cleaned up.")
 
     return StreamingResponse(
         generate(),
@@ -415,8 +489,6 @@ async def stream_download(url: str):
             "Content-Disposition": f'attachment; filename="{title}.mp4"',
         },
     )
-
-
 @app.get("/")
 async def root():
     return {
