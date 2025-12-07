@@ -55,8 +55,8 @@ samconfig.toml
 Thumbs.db
 Desktop.ini
 
-# Logs
-*.log
+# # Logs
+# *.log
 
 # Downloaded files (partial downloads)
 *.part
