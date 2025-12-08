@@ -46,8 +46,8 @@ try:
     redis_client.ping()
     print(f"✅ Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
 except Exception as e:
-    print(f"⚠️  Redis connection failed: {e}")
-    print("⚠️  Falling back to in-memory storage (not recommended for production)")
+    print(f" Redis connection failed: {e}")
+    print(" Falling back to in-memory storage (not recommended for production)")
     redis_client = None
 
 # Directories & Files
