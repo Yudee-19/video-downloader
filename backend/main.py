@@ -85,8 +85,17 @@ app.add_middleware(
 TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+# ... imports ...
+
+# UPDATE THIS BLOCK
+# Check Render's secret path first, then fall back to local for development
+if os.path.exists("/etc/secrets/cookies.txt"):
+    COOKIES_FILE = "/etc/secrets/cookies.txt"
+else:
+    COOKIES_FILE = "cookies.txt"  # For local testing
+
 # Cookies file path - works for both local and Docker
-COOKIES_FILE = os.getenv("COOKIES_FILE", "/app/cookies.txt" if os.path.exists("/app/cookies.txt") else "cookies.txt")
+# COOKIES_FILE = os.getenv("COOKIES_FILE", "/app/cookies.txt" if os.path.exists("/app/cookies.txt") else "cookies.txt")
 
 class DownloadRequest(BaseModel):
     url: str
@@ -361,7 +370,7 @@ async def stream_download(url: str):
     # We specifically request MP4 video and M4A audio. 
     # This ensures both are compatible with the MP4 container WITHOUT transcoding.
     ydl_opts = {
-        'cookiefile': COOKIES_FILE,
+        'cookiefile': COOKIES_FILE,  # <--- This must use the variable we defined above
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'quiet': True,
         'logger': MyYtLogger(logger),
