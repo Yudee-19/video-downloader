@@ -10,3 +10,6 @@ venv/
 *.egg-info/
 dist/
 build/
+test_*.mp4
+test_*.py
+output*.json
