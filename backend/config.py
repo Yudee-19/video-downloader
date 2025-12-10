@@ -51,8 +51,8 @@ except Exception as e:
     redis_client = None
 
 # Directories & Files
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 if os.path.exists("/etc/secrets/cookies.txt"):
