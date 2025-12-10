@@ -51,13 +51,14 @@ except Exception as e:
     redis_client = None
 
 # Directories & Files
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 if os.path.exists("/etc/secrets/cookies.txt"):
     COOKIES_FILE = "/etc/secrets/cookies.txt"
 else:
-    COOKIES_FILE = "cookies.txt"
+    COOKIES_FILE = os.path.join(BASE_DIR, "cookies.txt")
 
 # Thread Pool
 MAX_PARALLEL_DOWNLOADS = int(os.getenv("MAX_PARALLEL_DOWNLOADS", "3"))

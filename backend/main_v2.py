@@ -7,6 +7,8 @@ import uuid
 from typing import List
 from datetime import datetime
 import asyncio
+from stream_engine import get_stream_url, generate_stream
+import urllib.parse
 import logging
 
 # Import from our new modules
@@ -34,88 +36,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print(f"🚀 Loaded yt-dlp version: {yt_dlp.version.__version__}")
+# print(f"🚀 Loaded yt-dlp version: {yt_dlp.version.__version__}")
 
 @app.get("/stream-download")
 async def stream_download(url: str):
-    logger.info(f"--- NEW HIGH-SCALE REQUEST: {url} ---")
-
-    ydl_opts = {
-        'cookiefile': COOKIES_FILE,
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        'quiet': True,
-        'logger': MyYtLogger(logger),
-    }
-
+    logger.info(f"--- STREAM REQUEST: {url} ---")
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            url_list = []
-            
-            if 'requested_formats' in info:
-                url_list = [f['url'] for f in info['requested_formats']]
-            elif 'url' in info:
-                url_list = [info['url']]
-            else:
-                raise HTTPException(status_code=500, detail="No stream URLs found")
-
-            title = info.get('title', 'video').replace('"', '').replace("'", "")
-            
+        # Step 1: Get the Link & Headers using your new Engine
+        url_list, title, user_agent = await get_stream_url(url)
+        
+        # Step 2: Sanitize filename
+        safe_filename = urllib.parse.quote(str(title))
+        
+        # Step 3: Start Streaming using the new Engine
+        return StreamingResponse(
+            generate_stream(url_list, user_agent),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_filename}.mp4"',
+            },
+        )
     except Exception as e:
-        logger.error(f"Extraction failed: {e}")
+        logger.error(f"Stream failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-reconnect', '1', 
-        '-reconnect_streamed', '1', 
-        '-reconnect_delay_max', '5',
-        '-loglevel', 'error'
-    ]
-
-    for stream_url in url_list:
-        ffmpeg_cmd.extend(['-i', stream_url])
-
-    if len(url_list) > 1:
-        ffmpeg_cmd.extend(['-map', '0:v', '-map', '1:a'])
-
-    ffmpeg_cmd.extend([
-        '-c', 'copy',
-        '-f', 'mp4', 
-        '-movflags', 'frag_keyframe+empty_moov', 
-        '-'
-    ])
-
-    process = await asyncio.create_subprocess_exec(
-        *ffmpeg_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL
-    )
-
-    async def async_generator():
-        try:
-            while True:
-                chunk = await process.stdout.read(32 * 1024)
-                if not chunk:
-                    break
-                yield chunk
-        except Exception as e:
-            logger.error(f"Stream broken: {e}")
-        finally:
-            if process.returncode is None:
-                try:
-                    process.kill()
-                except ProcessLookupError:
-                    pass
-            logger.info("Async stream closed.")
-
-    return StreamingResponse(
-        async_generator(),
-        media_type="video/mp4",
-        headers={
-            "Content-Disposition": f'attachment; filename="{title}.mp4"',
-        },
-    )
 
 @app.get("/")
 async def root():
