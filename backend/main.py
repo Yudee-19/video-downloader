@@ -8,7 +8,7 @@ from datetime import datetime
 from rq import Queue
 
 # Import from our modules
-from config import redis_client, logger
+from config import redis_client, logger, redis_raw_client
 from models import (
     DownloadRequest,
     BatchDownloadRequest,
@@ -42,19 +42,23 @@ app.add_middleware(
 )
 
 # --- REDIS QUEUE SETUP ---
-if not redis_client:
+if not redis_raw_client:
     logger.warning("⚠️ REDIS NOT CONNECTED! Batch downloads will fail.")
     task_queue = None
 else:
-    task_queue = Queue("default", connection=redis_client)
+    # Use RAW client for the Queue
+    task_queue = Queue("default", connection=redis_raw_client)
 # -------------------------
 
 
 @app.get("/stream-download")
 async def stream_download(url: str):
-    url_list, title = await extract_stream_info(url)
+    # Unpack 3 values now
+    url_list, title, headers = await extract_stream_info(url)
+
+    # Pass headers to the generator
     return StreamingResponse(
-        generate_stream_chunks(url_list),
+        generate_stream_chunks(url_list, headers),
         media_type="video/mp4",
         headers={
             "Content-Disposition": f'attachment; filename="{title}.mp4"',
@@ -236,37 +240,36 @@ async def check_batch_status(batch_id: str):
 @app.get("/video/{file_id}")
 async def get_video(file_id: str):
     """
-    Smart Endpoint: 
+    Smart Endpoint:
     - If file is local, serve it.
     - If file is on S3 (Batch), REDIRECT to S3.
     """
     status = get_download_status(file_id)
-    
+
     if not status:
         raise HTTPException(status_code=404, detail="File ID not found")
-    
+
     if not status.get("ready"):
         raise HTTPException(status_code=400, detail="File not ready yet")
-    
+
     if status.get("error"):
         raise HTTPException(status_code=500, detail=status["error"])
-    
+
     # CHECK 1: Is there an S3 URL? If yes, Redirect!
     # This saves the frontend from needing changes.
     if status.get("download_url"):
         return RedirectResponse(url=status["download_url"])
-    
+
     # CHECK 2: Is it a local file?
     filepath = status.get("filepath")
     if filepath and os.path.exists(filepath):
         return FileResponse(
-            filepath,
-            filename=status["filename"],
-            media_type='application/octet-stream'
+            filepath, filename=status["filename"], media_type="application/octet-stream"
         )
-    
+
     # If neither, we have a problem
     raise HTTPException(status_code=404, detail="File not found (Local or S3)")
+
 
 @app.delete("/cleanup/{file_id}")
 async def cleanup_file(file_id: str):
