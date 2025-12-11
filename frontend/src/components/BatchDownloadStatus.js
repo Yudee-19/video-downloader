@@ -37,8 +37,13 @@ function BatchDownloadStatus({ batchId, totalVideos, onReset }) {
     return () => clearInterval(interval);
   }, [batchId]);
 
-  const handleDownload = (fileId) => {
-    window.open(`${API_URL}/video/${fileId}`, '_blank');
+  const handleDownload = (download) => {
+    // Use S3 download_url if available, otherwise fallback to local /video endpoint
+    if (download.download_url) {
+      window.open(download.download_url, '_blank');
+    } else {
+      window.open(`${API_URL}/video/${download.file_id}`, '_blank');
+    }
   };
 
   const handleCleanup = async () => {
@@ -226,7 +231,7 @@ function BatchDownloadStatus({ batchId, totalVideos, onReset }) {
 
                 {download.ready && (
                   <button
-                    onClick={() => handleDownload(download.file_id)}
+                    onClick={() => handleDownload(download)}
                     className="bg-primary hover:bg-cyan-400 text-dark font-medium px-4 py-2 rounded-lg transition-all flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

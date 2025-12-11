@@ -6,6 +6,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 function DownloadStatus({ fileId, onComplete, onReset }) {
   const [status, setStatus] = useState('checking');
   const [filename, setFilename] = useState('');
+  const [downloadUrl, setDownloadUrl] = useState(''); // S3 presigned URL
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,6 +19,7 @@ function DownloadStatus({ fileId, onComplete, onReset }) {
         if (response.data.ready) {
           setStatus('ready');
           setFilename(response.data.filename);
+          setDownloadUrl(response.data.download_url || ''); // S3 URL if available
           onComplete();
           clearInterval(interval);
         } else if (response.data.error) {
@@ -44,7 +46,12 @@ function DownloadStatus({ fileId, onComplete, onReset }) {
   }, [fileId, onComplete]);
 
   const handleDownload = () => {
-    window.open(`${API_URL}/video/${fileId}`, '_blank');
+    // Use S3 download_url if available, otherwise fallback to local /video endpoint
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank');
+    } else {
+      window.open(`${API_URL}/video/${fileId}`, '_blank');
+    }
   };
 
   const handleNewDownload = async () => {

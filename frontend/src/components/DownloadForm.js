@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function DownloadForm({ onDownloadStart }) {
   const [url, setUrl] = useState('');

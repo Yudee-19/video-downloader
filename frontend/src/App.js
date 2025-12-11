@@ -81,11 +81,6 @@ function App() {
     setIsDownloading(false);
   };
 
-  const toggleMode = () => {
-    setMode(mode === 'single' ? 'batch' : 'single');
-    handleReset();
-  };
-
   return (
     <div className="min-h-screen">
       <div className="px-4 py-12">
