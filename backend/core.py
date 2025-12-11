@@ -186,8 +186,11 @@ def download_video_task(
                 "User-Agent": selected_user_agent,
                 "Accept-Language": "en-US,en;q=0.9",
             },
+            "force_ipv4": True,                     # prevents 403
+            "remote_components": ["ejs:github"],    # enable JS signature solver
+            "js_engine": "deno",
             "retries": 5,
-            "fragment_retries": 5,
+            "fragment_retries": 5
         }
 
         if audio_only:
