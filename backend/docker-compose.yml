@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # --- Service 1: The Glue (Redis) ---
+  # Why: Acts as the "Ticket Board" for communication between API and Workers.
+  redis:
+    image: redis:alpine
+    container_name: yt_redis
+    ports:
+      - "6379:6379"  # Expose port so you can check it locally if needed
+    networks:
+      - yt_network
+
+  # --- Service 2: The Manager (API) ---
+  # Why: Handles Instant Streams and accepts user requests.
+  api:
+    build: .  # Build from the Dockerfile in current directory
+    container_name: yt_api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "8000:8000"  # Map Container Port 8000 to Laptop Port 8000
+    environment:
+      - REDIS_HOST=redis        # "redis" matches the service name above
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} # Pass secrets from .env
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - YT_DLP_JS_ENGINE=deno
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
+    depends_on:
+      - redis  # Wait for Redis to start before starting API
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Simulation: Crash if API uses >4GB RAM
+    networks:
+      - yt_network
+
+  # --- Service 3: The Kitchen Staff (Workers) ---
+  # Why: Handles the heavy Batch Downloads/Uploads in background.
+  worker:
+    build: .
+    command: python worker.py
+    # We don't map ports because workers don't talk to the outside world.
+    # They only talk to Redis (internal).
+    environment:
+      - REDIS_HOST=redis
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - YT_DLP_JS_ENGINE=deno
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
+    depends_on:
+      - redis
+    deploy:
+      replicas: 2  # Start with 2 Workers for local test (Change to 30 on AWS)
+      resources:
+        limits:
+          memory: 2G  # Workers get more RAM for heavy downloads
+    networks:
+      - yt_network
+
+# Create a private internal network so containers can talk securely
+networks:
+  yt_network:
+    driver: bridge

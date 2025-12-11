@@ -1,37 +1,33 @@
-# Backend Dockerfile for FastAPI + yt-dlp
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system deps
 RUN apt-get update && apt-get install -y \
-  ffmpeg \
-  curl \
-  aria2 \
-  && rm -rf /var/lib/apt/lists/*
+    ffmpeg \
+    curl \
+    git \
+    aria2 \
+    unzip \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Install Deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="${DENO_INSTALL}/bin:${PATH}"
+
+# Force yt-dlp to use Deno engine
+ENV YT_DLP_JS_ENGINE=deno
+
 WORKDIR /app
 
-# Copy requirements first for better caching
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy code
 COPY . .
 
-# Ensure cookies.txt has proper permissions
-RUN chmod 644 /app/cookies.txt
+# Optional — ensure cookies.txt readable
+RUN chmod 644 /app/cookies.txt || true
 
-# Create directory for video storage
-RUN mkdir -p /app/tmp_videos
-
-# Expose port
-EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8000/ || exit 1
-
-# Run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
