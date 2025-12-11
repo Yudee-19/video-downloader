@@ -30,6 +30,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
 
 redis_client = None
+redis_raw_client = None
 try:
     redis_config = {
         'host': REDIS_HOST,
@@ -39,26 +40,33 @@ try:
         'socket_timeout': 5,
         'retry_on_timeout': True
     }
+    redis_raw_config = redis_config.copy()
+    redis_raw_config['decode_responses'] = False
+
     if REDIS_PASSWORD:
         redis_config['password'] = REDIS_PASSWORD
     
     redis_client = redis.Redis(**redis_config)
+    redis_raw_client = redis.Redis(**redis_raw_config)
     redis_client.ping()
     print(f"✅ Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
 except Exception as e:
     print(f" Redis connection failed: {e}")
     print(" Falling back to in-memory storage (not recommended for production)")
     redis_client = None
+    redis_raw_client = None
 
 # Directories & Files
 TEMP_DIR = os.getenv("TEMP_DIR", "tmp_videos")
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-if os.path.exists("/etc/secrets/cookies.txt"):
-    COOKIES_FILE = "/etc/secrets/cookies.txt"
-else:
+if BASE_DIR:
+    print(f"✅ Base directory set to: {BASE_DIR}")
     COOKIES_FILE = os.path.join(BASE_DIR, "cookies.txt")
+else:
+    print("cookie file is not found")
+    COOKIES_FILE = "/home/rareboy/Internship/Kajkarma/video-downloader/backend/cookies.txt"
 
 # Thread Pool
 MAX_PARALLEL_DOWNLOADS = int(os.getenv("MAX_PARALLEL_DOWNLOADS", "3"))
