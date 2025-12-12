@@ -6,6 +6,7 @@ import os
 from fastapi.responses import RedirectResponse
 from datetime import datetime
 from rq import Queue
+from urllib.parse import quote
 
 # Import from our modules
 from config import redis_client, logger, redis_raw_client
@@ -55,13 +56,13 @@ else:
 async def stream_download(url: str):
     # Unpack 3 values now
     url_list, title, headers = await extract_stream_info(url)
-
+    safe_filename = quote(f"{title}.mp4")
     # Pass headers to the generator
     return StreamingResponse(
         generate_stream_chunks(url_list, headers),
         media_type="video/mp4",
         headers={
-            "Content-Disposition": f'attachment; filename="{title}.mp4"',
+            "Content-Disposition": f"attachment; filename*=utf-8''{safe_filename}",
         },
     )
 
