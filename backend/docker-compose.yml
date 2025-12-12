@@ -56,10 +56,10 @@ services:
     depends_on:
       - redis
     deploy:
-      replicas: 2  # Start with 2 Workers for local test (Change to 30 on AWS)
+      replicas: 20  # Start with 2 Workers for local test (Change to 30 on AWS)
       resources:
         limits:
-          memory: 2G  # Workers get more RAM for heavy downloads
+          memory: 4G  # Workers get more RAM for heavy downloads
     networks:
       - yt_network
 
