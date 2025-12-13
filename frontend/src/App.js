@@ -5,7 +5,7 @@ import DownloadStatus from './components/DownloadStatus';
 import BatchDownloadForm from './components/BatchDownloadForm';
 import BatchDownloadStatus from './components/BatchDownloadStatus';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'https://happening-politicians-tried-genius.trycloudflare.com';
 
 function App() {
   const [fileId, setFileId] = useState(null);
